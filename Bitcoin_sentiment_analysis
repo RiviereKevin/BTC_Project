@@ -1,0 +1,252 @@
+# Packages
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("tidytext")
+library(tidytext)
+library(ROAuth)
+library(RCurl)
+library(rtweet)
+library(twitteR)
+library(tm)
+library(wordcloud)
+library(tidyverse)
+library(sqldf)
+library(ggplot2)
+library(data.table)
+library(gridExtra)
+
+## Authentification
+# whatever name you assigned to your created app
+appname <- "#######"
+## api key 
+key <- "########"
+## api secret (example below is not a real key)
+secret <- "##############"
+
+
+twitter_token <- create_token(app = appname,consumer_key = key, consumer_secret = secret, access_token = "################", access_secret = "#######")
+
+bitcoin_tweets <- rtweet::get_timeline(c("bitcoin"), n = 3000, parse=T, token=twitter_token)
+
+ts_plot(bitcoin_tweets, "hours")+
+  ggplot2::theme_minimal()+
+  ggplot2::theme(plot.title=ggplot2::element_text(face="bold"))+
+  ggplot2::labs(x=NULL,y=NULL,
+                title="Frequency of #Bitcoin on Twitter",
+                subtitle="Twitter status counts 1-hour intervals",
+                caption="\nSource: Data collected from Twitter's API"
+  )
+install.packages("tm", dependencies=TRUE)*
+install.packages("stringi")
+install.packages("NLP")
+install.packages("stringr")
+
+library("tm")
+library("stringi")
+library("stringr")
+
+## comparing freq tweets to price BTC/USD
+
+install.packages("coinmarketcapr")
+library(coinmarketcapr)
+library(tidyverse)
+install.packages("quantmod")
+library(quantmod)
+portfolio = c("BTC-USD")
+getSymbols(portfolio, src="yahoo", from="2020-01-01")
+chartSeries(`BTC-USD`)
+barChart(`BTC-USD`,theme='white.mono',bar.type='hlc')
+
+#########################################################################################
+
+usableText <- iconv(bitcoin_tweets$text, to = "ASCII", sub="")
+bitcoin_tweets_corpus<-Corpus(VectorSource(usableText))
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,tolower)
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,removePunctuation)
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,removeNumbers)
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,function(x)removeWords(x,stopwords()))
+
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,
+                              function(x)removeWords(x,
+                                                     stopwords("french")))
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,
+                              function(x)removeWords(x,
+                                                     stopwords("italian")))
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,
+                              function(x)removeWords(x,
+                                                     stopwords("spanish")))
+bitcoin_tweets_corpus<-tm_map(bitcoin_tweets_corpus,
+                              function(x)removeWords(x,
+                                                     stopwords("English")))
+library("wordcloud")
+
+text_corpus <- tm_map(bitcoin_tweets_corpus,
+                      content_transformer(function(x)
+                        iconv(x,to='ASCII',sub='byte')))
+
+bitcoin_tweets.tdm <- TermDocumentMatrix(text_corpus)
+m <- as.matrix(bitcoin_tweets.tdm)
+m[1:2,1:5]
+
+## Most frequent terms in our matrix
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 5)
+
+barplot(d[1:20,]$freq, las = 3, 
+        names.arg = d[1:20,]$word,col ="lightblue", 
+        main ="Most frequent words",
+        ylab = "Word frequencies")
+#Freq_term
+findFreqTerms(bitcoin_tweets.tdm, lowfreq=50)[1:10]
+bitcoin_tweets.tdm<-removeSparseTerms(bitcoin_tweets.tdm, 
+                                      sparse=0.95)
+
+## Sentiment score
+
+library("sentimentr")
+plain.text<-vector()
+for(i in 1:dim(bitcoin_tweets)[1]){
+  plain.text[i]<-bitcoin_tweets_corpus[[i]][[1]]
+}
+
+sentence_sentiment<-sentiment(get_sentences(plain.text))
+sentence_sentiment
+
+average_sentiment<-mean(sentence_sentiment$sentiment)
+average_sentiment
+
+sd_sentiment<-sd(sentence_sentiment$sentiment)
+sd_sentiment
+
+##Sentiment terms##
+extract_sentiment_terms(get_sentences(plain.text))
+extract_sentiment_terms
+
+##Topic Modeling: LDA##
+# Used to explore through large bodies of captured text
+# to detect dominant themes or topics;
+# Packages to be installed and loaded
+
+install.packages(topicmodels)
+library(tidytext)
+library(topicmodels)
+library(tidyverse)
+library(rvest)
+library(reshape2)
+
+
+
+## Topic Modeling
+text_corpus2<-text_corpus[1:200]
+doc.lengths<-rowSums(as.matrix(DocumentTermMatrix(text_corpus2)))
+dtm <- DocumentTermMatrix(text_corpus2[doc.lengths > 0])
+
+# Pick a random seed for replication
+SEED = sample(1:1000000, 1)  
+# Let's start with 2 topics
+k = 4  
+Topics_results<-LDA(dtm, k = k, control = list(seed = SEED))
+
+
+## Topic Modeling
+terms(Topics_results,15)
+
+## Topic Modeling
+topics(Topics_results)
+
+
+## Topic Modeling
+tidy_model_beta<-tidy(Topics_results, matrix = "beta")
+
+tidy_model_beta %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta) %>%
+  ggplot(aes(reorder(term, beta),beta,fill=factor(topic)))+
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_fill_viridis_d() + 
+  coord_flip() + 
+  labs(x = "Topic", 
+       y = "beta score", 
+       title = "Topic modeling")
+
+## Topic Modeling
+tidy_model_beta<-tidy(Topics_results, matrix = "beta")
+
+tidy_model_beta %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta) %>%
+  ggplot(aes(reorder(term, beta),beta,fill=factor(topic)))+
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_fill_viridis_d() + 
+  coord_flip() + 
+  labs(x = "Topic", 
+       y = "beta score", 
+       title = "Topic modeling")
+
+
+### Sentiment related to BTC 
+
+install.packages("syuzhet")
+library(syuzhet)
+install.packages("sqldf")
+library(gsubfn)
+library(proto)
+library(RSQLite)
+library(sqldf)
+
+# Calculate the sentiment scores for each tweet
+
+bitcoin <- bitcoin_tweets %>% select(full_text)
+bitcoin<-as.character(bitcoin)
+bitcoin<-as_tibble(bitcoin)
+bitcoin<-bitcoin%>%unnest_tokens(word, value)#Separating the words in to tokens
+
+#Counting the sentiment related words for bitcoin
+bitcoinSentiments<-sqldf('select sentiments.*,bitcoin.word as SentimentWord from sentiments, bitcoin
+                         where sentiments.word=bitcoin.word')
+
+bitcoinSentiments<-bitcoinSentiments%>%group_by(sentiment)%>%summarise(count=n())
+bitcoinSentiments<-bitcoinSentiments%>%arrange(desc(count))
+print(bitcoinSentiments)
+
+p1<-ggplot(data =filter(na.omit(bitcoinSentiments)),aes(x = reorder(sentiment,count),y =count))+geom_bar(stat='identity')+
+  coord_flip()+labs(title='Bitcoin Sentiments',x='Sentiments',y='Sentiment Count')
+p1
+
+## BTC Emotion count 
+
+df <- bitcoin_tweets %>% select(full_text)
+View(df)
+df<-gsub("[^[:alnum:][:space:]$]", "", df)
+df<-tolower(df)
+df<-removeWords(df, c(stopwords("english"),'ampamp','retweet','just','comment','amp','bitcoin','btc','xrp','eth','crypto','cryptocurrency'))
+view(df)
+
+syuzhet <- get_sentiment(df, method="syuzhet")
+bing <- get_sentiment(df, method="bing")
+afinn <- get_sentiment(df, method="afinn")
+nrc <- get_sentiment(df, method="nrc")
+sentiments <- data.frame(df, bing, afinn, nrc)
+
+
+# get the emotions using the NRC dictionary
+emotions <- get_nrc_sentiment(df)
+emo_bar = colSums(emotions)
+emo_sum = data.frame(count=emo_bar, emotion=names(emo_bar))
+emo_sum$emotion = factor(emo_sum$emotion, levels=emo_sum$emotion[order(emo_sum$count, decreasing = TRUE)])
+emo_sum
+
+library(plotly)
+
+plot_ly(emo_sum, x=~emotion, y=~count, type="bar", color=~'rgb(158,202,225)') %>%
+  layout(xaxis=list(title="Emotions"), showlegend=FALSE,
+         title="Distribution of emotion BTC tweets")*
